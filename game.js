@@ -34,6 +34,21 @@ function startGame() {
     canvas.addEventListener('mousemove', handleCanvasHover);
     canvas.addEventListener('mouseout', handleCanvasMouseOut);
     
+    // Add touch event listeners to navigation buttons for better mobile support
+    const navButtons = ['upButton', 'downButton', 'leftButton', 'rightButton'];
+    navButtons.forEach(buttonId => {
+        const button = document.getElementById(buttonId);
+        if (button) {
+            // Prevent default touch behavior to avoid delays
+            button.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                if (!button.disabled) {
+                    button.click();
+                }
+            });
+        }
+    });
+    
     // Start with first maze
     loadMaze(0, 0);
 }
@@ -706,8 +721,18 @@ function moveRight() {
 
 // Update button states based on available moves
 function updateButtonStates() {
+    if (!gameActive) {
+        // Disable all buttons when game is not active
+        document.getElementById('upButton').disabled = true;
+        document.getElementById('downButton').disabled = true;
+        document.getElementById('leftButton').disabled = true;
+        document.getElementById('rightButton').disabled = true;
+        return;
+    }
+    
     const cell = currentMaze.cells[playerPos.y][playerPos.x];
     
+    // Enable/disable based on walls and boundaries
     document.getElementById('upButton').disabled = cell.walls.north || playerPos.y === 0;
     document.getElementById('downButton').disabled = cell.walls.south || playerPos.y === currentMaze.height - 1;
     document.getElementById('leftButton').disabled = cell.walls.west || playerPos.x === 0;
