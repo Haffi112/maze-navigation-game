@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maze Navigation Challenge</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        #container {
+            max-width: 800px;
+            width: 100%;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        #intro {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        #intro p {
+            color: #666;
+            line-height: 1.6;
+            margin: 10px 0;
+        }
+
+        #startButton {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 18px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        #startButton:hover {
+            background-color: #45a049;
+        }
+
+        #gameArea {
+            display: none;
+        }
+
+        #statusBar {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f8f8f8;
+            border-radius: 5px;
+        }
+
+        .status-item {
+            font-size: 14px;
+            color: #555;
+        }
+
+        .status-item strong {
+            color: #333;
+        }
+
+        #mazeCanvas {
+            border: 2px solid #ddd;
+            display: block;
+            margin: 0 auto 20px;
+            cursor: pointer;
+        }
+
+        #controls {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .control-info {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        #message {
+            text-align: center;
+            font-size: 18px;
+            margin: 20px 0;
+            min-height: 30px;
+        }
+
+        .success {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+
+        .failure {
+            color: #f44336;
+            font-weight: bold;
+        }
+
+        .warning {
+            color: #ff9800;
+        }
+
+        #citations {
+            margin-top: 50px;
+            padding-top: 30px;
+            border-top: 1px solid #ddd;
+            text-align: center;
+            font-size: 14px;
+            color: #666;
+        }
+
+        #citations a {
+            color: #4CAF50;
+            text-decoration: none;
+        }
+
+        #citations a:hover {
+            text-decoration: underline;
+        }
+
+        .bib-record {
+            background-color: #f8f8f8;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            text-align: left;
+            white-space: pre-wrap;
+        }
+
+        #visibilityInfo {
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <h1>Maze Navigation Challenge</h1>
+        
+        <div id="intro">
+            <p>Welcome to the Maze Navigation Challenge!</p>
+            <p>This interactive experience recreates the spatial reasoning experiment used to evaluate Large Language Models. You'll navigate through increasingly complex mazes (5×5 to 15×15) using limited visibility - just like the LLMs in our study.</p>
+            <p><strong>Your task:</strong> Navigate from the green starting position (top-left) to the red goal (bottom-right). You can only see how far you can travel in each direction before hitting a wall.</p>
+            <p><strong>Rules:</strong> You lose if you visit the same cell 10 times or make more than 3n² moves in an n×n maze.</p>
+            <button id="startButton" onclick="startGame()">Start Challenge</button>
+        </div>
+
+        <div id="gameArea">
+            <div id="statusBar">
+                <div class="status-item">Level: <strong id="levelDisplay">1</strong></div>
+                <div class="status-item">Maze Size: <strong id="sizeDisplay">5×5</strong></div>
+                <div class="status-item">Moves: <strong id="movesDisplay">0</strong></div>
+                <div class="status-item">Move Limit: <strong id="limitDisplay">75</strong></div>
+            </div>
+
+            <div id="visibilityInfo">You can see the distance to walls in each direction (highlighted cells)</div>
+
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #4CAF50;"></div>
+                    <span>Player</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #f44336;"></div>
+                    <span>Goal</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: white;"></div>
+                    <span>Visited</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #e0e0e0;"></div>
+                    <span>Visible</span>
+                </div>
+            </div>
+
+            <canvas id="mazeCanvas"></canvas>
+
+            <div id="controls">
+                <div class="control-info">Use arrow keys or WASD to move</div>
+            </div>
+
+            <div id="message"></div>
+        </div>
+
+        <div id="citations">
+            <p><strong>How did AI models perform on this challenge?</strong></p>
+            <p>Discover which LLMs succeeded, which failed spectacularly, and the performance gap between languages in our research paper:</p>
+            <p><a href="#" id="arxivLink">[Paper link will be added]</a></p>
+            <div class="bib-record">@inproceedings{maze-eval-2026,
+  title={Cross-linguistic Evaluation of Spatial Reasoning in Large Language Models},
+  author={[Authors]},
+  booktitle={Proceedings of LREC-COLING 2026},
+  year={2026},
+  note={[To be filled in]}
+}</div>
+        </div>
+    </div>
+
+    <script src="maze_data.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>
