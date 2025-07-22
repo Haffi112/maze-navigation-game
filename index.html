@@ -14,6 +14,8 @@
             flex-direction: column;
             align-items: center;
             min-height: 100vh;
+            /* Prevent touch scrolling during gameplay */
+            overscroll-behavior: contain;
         }
 
         #container {
@@ -173,6 +175,92 @@
             height: 20px;
             border: 1px solid #ddd;
         }
+        
+        #mobileControls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 20px;
+            gap: 5px;
+        }
+        
+        .control-row {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .nav-button {
+            width: 60px;
+            height: 60px;
+            font-size: 24px;
+            border: 2px solid #ddd;
+            background-color: #f8f8f8;
+            color: #333;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: all 0.2s;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        .nav-button:hover:not(:disabled) {
+            background-color: #e0e0e0;
+            border-color: #4CAF50;
+        }
+        
+        .nav-button:active:not(:disabled) {
+            background-color: #4CAF50;
+            color: white;
+            transform: scale(0.95);
+        }
+        
+        .nav-button-center {
+            background-color: transparent;
+            border: none;
+            cursor: default;
+        }
+        
+        .nav-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        /* Touch device styles */
+        @media (pointer: coarse) {
+            .nav-button {
+                width: 75px;
+                height: 75px;
+                font-size: 30px;
+            }
+        }
+        
+        /* Responsive design for mobile */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            #container {
+                padding: 15px;
+            }
+            
+            .nav-button {
+                width: 70px;
+                height: 70px;
+                font-size: 28px;
+            }
+            
+            #statusBar {
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+            
+            .status-item {
+                flex: 1 1 45%;
+                text-align: center;
+            }
+        }
     </style>
 </head>
 <body>
@@ -219,7 +307,20 @@
             <canvas id="mazeCanvas"></canvas>
 
             <div id="controls">
-                <div class="control-info">Use arrow keys or WASD to move</div>
+                <div class="control-info">Use arrow keys, WASD, click neighboring cells, or buttons below</div>
+                <div id="mobileControls">
+                    <div class="control-row">
+                        <button class="nav-button" id="upButton" onclick="moveUp()">↑</button>
+                    </div>
+                    <div class="control-row">
+                        <button class="nav-button" id="leftButton" onclick="moveLeft()">←</button>
+                        <button class="nav-button nav-button-center" disabled></button>
+                        <button class="nav-button" id="rightButton" onclick="moveRight()">→</button>
+                    </div>
+                    <div class="control-row">
+                        <button class="nav-button" id="downButton" onclick="moveDown()">↓</button>
+                    </div>
+                </div>
             </div>
 
             <div id="message"></div>

@@ -15,6 +15,8 @@ let currentSizeIndex = 0;
 let canvas = null;
 let ctx = null;
 let cellSize = 40;
+let hoveredCell = null; // Track which cell is being hovered
+let clickableCells = new Set(); // Track which cells are clickable
 
 function startGame() {
     document.getElementById('intro').style.display = 'none';
@@ -25,6 +27,12 @@ function startGame() {
     
     // Add keyboard listeners
     document.addEventListener('keydown', handleKeyPress);
+    
+    // Add mouse/touch listeners for mobile navigation
+    canvas.addEventListener('click', handleCanvasClick);
+    canvas.addEventListener('touchstart', handleCanvasTouch);
+    canvas.addEventListener('mousemove', handleCanvasHover);
+    canvas.addEventListener('mouseout', handleCanvasMouseOut);
     
     // Start with first maze
     loadMaze(0, 0);
@@ -61,8 +69,21 @@ function loadMaze(sizeIndex, mazeIndex) {
     // Update UI
     updateStatus();
     
-    // Set canvas size
-    cellSize = Math.min(40, Math.floor(600 / Math.max(currentMaze.width, currentMaze.height)));
+    // Set canvas size based on container width and screen size
+    const container = document.getElementById('container');
+    const maxCanvasWidth = Math.min(container.offsetWidth - 40, 600); // 40px for padding
+    const maxCanvasHeight = window.innerHeight * 0.5; // Use 50% of viewport height
+    
+    // Calculate cell size to fit the maze within constraints
+    const cellSizeByWidth = Math.floor(maxCanvasWidth / currentMaze.width);
+    const cellSizeByHeight = Math.floor(maxCanvasHeight / currentMaze.height);
+    cellSize = Math.min(40, cellSizeByWidth, cellSizeByHeight);
+    
+    // Ensure minimum cell size for touch interaction
+    if (window.innerWidth <= 768) {
+        cellSize = Math.max(cellSize, 30); // Minimum 30px on mobile
+    }
+    
     canvas.width = currentMaze.width * cellSize;
     canvas.height = currentMaze.height * cellSize;
     
@@ -73,13 +94,17 @@ function loadMaze(sizeIndex, mazeIndex) {
     // Update visibility
     updateVisibility();
     
+    // Update button states
+    updateButtonStates();
+    
     // Initial render
     render();
 }
 
 function updateVisibility() {
-    // Clear previous visibility
+    // Clear previous visibility and clickable cells
     visibleCells.clear();
+    clickableCells.clear();
     
     // Get current cell
     const cell = currentMaze.cells[playerPos.y][playerPos.x];
@@ -95,6 +120,17 @@ function updateVisibility() {
     for (const dir of directions) {
         let x = playerPos.x;
         let y = playerPos.y;
+        
+        // First check if we can move in this direction (for clickable cells)
+        const currentCell = currentMaze.cells[y][x];
+        if (!currentCell.walls[dir.name]) {
+            const neighborX = playerPos.x + dir.dx;
+            const neighborY = playerPos.y + dir.dy;
+            if (neighborX >= 0 && neighborX < currentMaze.width && 
+                neighborY >= 0 && neighborY < currentMaze.height) {
+                clickableCells.add(`${neighborX},${neighborY}`);
+            }
+        }
         
         // Keep moving in this direction until we hit a wall
         while (true) {
@@ -144,6 +180,23 @@ function render() {
             }
             
             ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+            
+            // Draw clickable cell indicator
+            if (clickableCells.has(key) && gameActive) {
+                ctx.fillStyle = 'rgba(76, 175, 80, 0.2)';
+                ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+                
+                // Draw a subtle border for clickable cells
+                ctx.strokeStyle = '#4CAF50';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(x * cellSize + 2, y * cellSize + 2, cellSize - 4, cellSize - 4);
+            }
+            
+            // Draw hover effect
+            if (hoveredCell && hoveredCell.x === x && hoveredCell.y === y && clickableCells.has(key)) {
+                ctx.fillStyle = 'rgba(76, 175, 80, 0.4)';
+                ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+            }
             
             // Draw walls for visited cells
             if (visitedCells.has(key)) {
@@ -307,12 +360,19 @@ function attemptMove(dx, dy) {
     // Update visibility and render
     updateVisibility();
     updateStatus();
+    updateButtonStates();
     render();
 }
 
 function handleWin() {
     gameActive = false;
     showMessage('Congratulations! You reached the goal!', 'success');
+    
+    // Disable all buttons
+    document.getElementById('upButton').disabled = true;
+    document.getElementById('downButton').disabled = true;
+    document.getElementById('leftButton').disabled = true;
+    document.getElementById('rightButton').disabled = true;
     
     // Show full maze after completion
     setTimeout(() => {
@@ -331,6 +391,12 @@ function handleWin() {
 function handleLoss(message) {
     gameActive = false;
     showMessage(message, 'failure');
+    
+    // Disable all buttons
+    document.getElementById('upButton').disabled = true;
+    document.getElementById('downButton').disabled = true;
+    document.getElementById('leftButton').disabled = true;
+    document.getElementById('rightButton').disabled = true;
     
     // Show full maze after failure
     setTimeout(() => {
@@ -455,8 +521,21 @@ function generateProceduralMaze(size) {
     // Update UI
     updateStatus();
     
-    // Set canvas size
-    cellSize = Math.min(40, Math.floor(600 / Math.max(maze.width, maze.height)));
+    // Set canvas size based on container width and screen size
+    const container = document.getElementById('container');
+    const maxCanvasWidth = Math.min(container.offsetWidth - 40, 600); // 40px for padding
+    const maxCanvasHeight = window.innerHeight * 0.5; // Use 50% of viewport height
+    
+    // Calculate cell size to fit the maze within constraints
+    const cellSizeByWidth = Math.floor(maxCanvasWidth / maze.width);
+    const cellSizeByHeight = Math.floor(maxCanvasHeight / maze.height);
+    cellSize = Math.min(40, cellSizeByWidth, cellSizeByHeight);
+    
+    // Ensure minimum cell size for touch interaction
+    if (window.innerWidth <= 768) {
+        cellSize = Math.max(cellSize, 30); // Minimum 30px on mobile
+    }
+    
     canvas.width = maze.width * cellSize;
     canvas.height = maze.height * cellSize;
     
@@ -548,3 +627,124 @@ function generateDFSMaze(width, height) {
         filename: `procedural_${width}x${height}`
     };
 }
+
+// Mouse/Touch event handlers for mobile navigation
+function handleCanvasClick(e) {
+    if (!gameActive) return;
+    
+    const rect = canvas.getBoundingClientRect();
+    const x = Math.floor((e.clientX - rect.left) / cellSize);
+    const y = Math.floor((e.clientY - rect.top) / cellSize);
+    
+    const cellKey = `${x},${y}`;
+    if (clickableCells.has(cellKey)) {
+        // Move to the clicked cell
+        const dx = x - playerPos.x;
+        const dy = y - playerPos.y;
+        attemptMove(dx, dy);
+    }
+}
+
+function handleCanvasTouch(e) {
+    if (!gameActive) return;
+    e.preventDefault(); // Prevent scrolling
+    
+    const rect = canvas.getBoundingClientRect();
+    const touch = e.touches[0];
+    const x = Math.floor((touch.clientX - rect.left) / cellSize);
+    const y = Math.floor((touch.clientY - rect.top) / cellSize);
+    
+    const cellKey = `${x},${y}`;
+    if (clickableCells.has(cellKey)) {
+        // Move to the touched cell
+        const dx = x - playerPos.x;
+        const dy = y - playerPos.y;
+        attemptMove(dx, dy);
+    }
+}
+
+function handleCanvasHover(e) {
+    if (!gameActive) return;
+    
+    const rect = canvas.getBoundingClientRect();
+    const x = Math.floor((e.clientX - rect.left) / cellSize);
+    const y = Math.floor((e.clientY - rect.top) / cellSize);
+    
+    const cellKey = `${x},${y}`;
+    if (clickableCells.has(cellKey)) {
+        hoveredCell = { x, y };
+        canvas.style.cursor = 'pointer';
+    } else {
+        hoveredCell = null;
+        canvas.style.cursor = 'default';
+    }
+    render();
+}
+
+function handleCanvasMouseOut(e) {
+    hoveredCell = null;
+    canvas.style.cursor = 'default';
+    if (gameActive) render();
+}
+
+// Navigation button functions
+function moveUp() {
+    if (gameActive) attemptMove(0, -1);
+}
+
+function moveDown() {
+    if (gameActive) attemptMove(0, 1);
+}
+
+function moveLeft() {
+    if (gameActive) attemptMove(-1, 0);
+}
+
+function moveRight() {
+    if (gameActive) attemptMove(1, 0);
+}
+
+// Update button states based on available moves
+function updateButtonStates() {
+    const cell = currentMaze.cells[playerPos.y][playerPos.x];
+    
+    document.getElementById('upButton').disabled = cell.walls.north || playerPos.y === 0;
+    document.getElementById('downButton').disabled = cell.walls.south || playerPos.y === currentMaze.height - 1;
+    document.getElementById('leftButton').disabled = cell.walls.west || playerPos.x === 0;
+    document.getElementById('rightButton').disabled = cell.walls.east || playerPos.x === currentMaze.width - 1;
+}
+
+// Handle window resize for responsive canvas
+function handleResize() {
+    if (!currentMaze) return;
+    
+    // Recalculate canvas size
+    const container = document.getElementById('container');
+    const maxCanvasWidth = Math.min(container.offsetWidth - 40, 600);
+    const maxCanvasHeight = window.innerHeight * 0.5;
+    
+    const cellSizeByWidth = Math.floor(maxCanvasWidth / currentMaze.width);
+    const cellSizeByHeight = Math.floor(maxCanvasHeight / currentMaze.height);
+    cellSize = Math.min(40, cellSizeByWidth, cellSizeByHeight);
+    
+    if (window.innerWidth <= 768) {
+        cellSize = Math.max(cellSize, 30);
+    }
+    
+    canvas.width = currentMaze.width * cellSize;
+    canvas.height = currentMaze.height * cellSize;
+    
+    // Redraw
+    render();
+}
+
+// Add resize listener
+window.addEventListener('resize', handleResize);
+window.addEventListener('orientationchange', handleResize);
+
+// Make navigation functions available globally for onclick handlers
+window.moveUp = moveUp;
+window.moveDown = moveDown;
+window.moveLeft = moveLeft;
+window.moveRight = moveRight;
+window.startGame = startGame;
